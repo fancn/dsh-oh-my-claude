@@ -6,7 +6,7 @@ import { execFile } from "node:child_process";
 import { appendFile, mkdir, readFile, rename, stat, writeFile } from "node:fs/promises";
 import { randomUUID } from "node:crypto";
 import { homedir } from "node:os";
-import { dirname, isAbsolute, join } from "node:path";
+import { dirname, isAbsolute, join, resolve as resolvePath } from "node:path";
 import type { AsideEntry } from "./adapter/types.js";
 import type { TurnRecord } from "./adapter/turn.js";
 import type { ToolMode } from "./rows-probe.js";
@@ -307,7 +307,7 @@ const keychainCredentials = (): Promise<string | null> =>
  */
 export async function authHeaders(
   home = CLAUDE_HOME,
-  keychain = home === KEYCHAIN_HOME ? keychainCredentials : undefined,
+  keychain = resolvePath(home) === KEYCHAIN_HOME ? keychainCredentials : undefined,
 ): Promise<Record<string, string> | null> {
   if (process.env.ANTHROPIC_API_KEY) return { "x-api-key": process.env.ANTHROPIC_API_KEY };
   const fromFile = authHeadersFrom(
