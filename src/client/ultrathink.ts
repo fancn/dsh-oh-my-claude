@@ -7,6 +7,7 @@ import {
   activeClaudeSession,
   keywordMatches,
   T,
+  CLAUDE_ORANGE,
   type ClientCtx,
 } from "./shared.js";
 import { gated, hasTheme } from "./theme.js";
@@ -60,6 +61,9 @@ export const RAINBOW_CSS =
   // in the composer. In a sent message the copy draws the quote block dsh gives a reply's quote
   // (a 2px bar, the accent at half strength, 14px to the text, measured on 2026-09-24).
   `::highlight(omc-quote){color:${T.muted}}::highlight(omc-quote-mark){color:${T.faint}}` +
+  // The passage the selection popover is about, kept lit after the page selection collapses as
+  // focus moves into the popover's question box.
+  `::highlight(omc-selection){background-color:color-mix(in srgb,var(--omc-accent,${CLAUDE_ORANGE}) 30%,transparent)}` +
   `[data-omc-quote-source]{display:none!important}[data-omc-quote-copy]{white-space:pre-wrap}` +
   `[data-omc-quote-copy]>[data-omc-quote-block]{border-left:2px solid ${T.border};padding-left:14px;color:${T.muted};margin:16px 0}` +
   `[data-omc-quote-copy]>[data-omc-quote-block]:first-child{margin-top:0}[data-omc-quote-copy]>[data-omc-quote-block]:last-child{margin-bottom:0}` +

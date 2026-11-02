@@ -488,8 +488,9 @@ export function apply(ctx: ClientCtx) {
       (props) =>
         props.sessionId ? <StaleModelRepair sessionId={props.sessionId} ctx={ctx} /> : null,
     );
-    // Select text in the chat and this bar docks on the composer: quote it into the draft, or ask
-    // about it as an aside. Highest order of the dock, so it sits on the composer itself.
+    // Select text in the chat and a popover opens next to it: quote it with a question into the
+    // draft, or ask about it as an aside. Mounted in the dock for the composer's input actions; it
+    // draws nothing there and portals the popover to the body.
     ctx.slots.register(
       { name: "conversation.input.dock", id: "claude-selection", order: 50 },
       (props) => <SelectionSlot {...props} ctx={ctx} />,

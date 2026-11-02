@@ -6,6 +6,10 @@ Versions from 1.0.0 up are on npm. Everything below 1.0.0 was released from the 
 
 ## [Unreleased]
 
+### Changed
+
+- Selecting text in the chat opens a popover next to the passage instead of a bar docked on the composer. Its question box takes the composer's keys: Enter asks, Shift+Enter starts a new line. Quote now needs a question: it writes the passage as a Markdown quote with the question under it and leaves the cursor on the next line, one blank line between blocks however many you quote. The popover follows the passage as the chat scrolls, waits at the chat's edge naming the passage while it is out of view, and keeps the passage highlighted while you type. The cursor used to land on either side of the quote's trailing blank line, or at the start of the draft. Ask is unchanged.
+
 ### Fixed
 
 - The cost pill's dialog opens above the pill again on dsh 0.2.2-alpha.3. That dsh gives its composer seat `will-change: transform`, which makes the seat the containing block for anything fixed-positioned inside it, and the dialog, rendered beside the pill, took its viewport coordinates from the seat's corner and drew 770px below the pill, off the bottom of the screen. The dialog is now portaled to the document body the way dsh's own stat dialogs are.

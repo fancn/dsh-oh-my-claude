@@ -55,7 +55,77 @@ export const quoteMarkdown = (text: string): string =>
     .map((line) => (line.trim() === "" ? ">" : `> ${line}`))
     .join("\n")}\n\n`;
 
-/** One-line preview of a passage for the bar's header: whitespace runs collapsed to one space. */
+/**
+ * The text Quote writes into the composer: the passage as a Markdown quote, a blank line, then the
+ * question, ending on the question's last character so the caret never sits after a raw newline.
+ * `before` is the draft up to the insertion point, or null when chips make it unreadable; the
+ * prefix tops whatever newlines it already ends on up to one blank line.
+ */
+export function quoteInsertion(text: string, question: string, before: string | null): string {
+  const ending = before === null ? 0 : (/\n*$/.exec(before)?.[0].length ?? 0);
+  const prefix = before?.trim() === "" ? "" : "\n".repeat(Math.max(0, 2 - ending));
+  return `${prefix}${quoteMarkdown(text)}${question.trim()}`;
+}
+
+/** A viewport rectangle, as `getBoundingClientRect` reports one. */
+export interface Rect {
+  left: number;
+  top: number;
+  right: number;
+  bottom: number;
+}
+/** `side` is the anchor's side the popover is on; `pinned` means the anchor is out of view and the
+ *  popover waits at the chat's edge nearest to it; `width` is what the chat leaves it room for. */
+export interface Placement {
+  left: number;
+  top: number;
+  width: number;
+  side: "top" | "bottom";
+  pinned: boolean;
+}
+
+/**
+ * Where the selection popover goes for a passage whose first and last lines on screen are `lines`:
+ * under the last line, centred on it, unless there is no room (a phone puts its own selection menu
+ * above); then over the first line, so it never covers the passage itself. 8px off the passage and
+ * 12px inside `visible`, the part of the chat on screen, so it covers neither the sidebar nor the
+ * composer. `size.width` is the width it would like; a narrower chat narrows it. A passage
+ * scrolled out of view pins the popover to the chat's edge nearest to it, so scrolling never takes
+ * away a question being typed.
+ */
+export function popoverPlacement(
+  lines: { first: Rect; last: Rect },
+  size: { width: number; height: number },
+  viewport: { width: number; height: number },
+  visible: Rect,
+): Placement {
+  const edge = 12;
+  const gap = 8;
+  const { first, last } = lines;
+  const minLeft = Math.max(0, visible.left) + edge;
+  const width = Math.min(size.width, Math.min(viewport.width, visible.right) - edge - minLeft);
+  const maxLeft = Math.min(viewport.width, visible.right) - edge - width;
+  const leftOf = (line: Rect) =>
+    Math.max(minLeft, Math.min((line.left + line.right) / 2 - width / 2, maxLeft));
+  const top = Math.max(0, visible.top) + edge;
+  const lowest = Math.max(top, Math.min(viewport.height, visible.bottom) - edge - size.height);
+  const placed = (line: Rect, at: number, side: Placement["side"], pinned: boolean) => ({
+    left: leftOf(line),
+    top: at,
+    width,
+    side,
+    pinned,
+  });
+  if (last.bottom <= visible.top) return placed(last, top, "bottom", true);
+  if (first.top >= visible.bottom) return placed(first, lowest, "top", true);
+  const below = last.bottom + gap;
+  if (below <= lowest) return placed(last, below, "bottom", false);
+  const above = first.top - gap - size.height;
+  if (above >= top) return placed(first, above, "top", false);
+  return placed(last, lowest, "bottom", false);
+}
+
+/** One-line preview of a passage for the pinned popover's header: whitespace runs collapsed. */
 export const previewOf = (text: string): string => text.replace(/\s+/g, " ").trim();
 
 /** The `POST /side-questions` body for a selection: the typed question trimmed (blank means explain)
