@@ -60,11 +60,12 @@ export interface Session {
     get seq(): number;
     append<T extends string>(type: T, data: Record<string, JsonValue>, ...opts: unknown[]): SessionEvent;
     deriveMessages(): Message[];
-    /** The folded `request/header`; `config.provider` is the provider the last request ran on. */
+    /** The folded `request/header`; `config` is the route the last request ran on. */
     requestHeader(): {
         version: number;
         config?: {
             provider?: string;
+            model?: string;
         };
     } | undefined;
     requestContext(): {

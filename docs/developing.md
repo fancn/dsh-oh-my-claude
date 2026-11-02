@@ -117,6 +117,15 @@ DSH_OMC_STATE_DIR=$(mktemp -d) bun tools/effort-switch-check.ts   # no prompt is
 
 It starts a real `claude -p`, hands it to the adapter as the process it drives, asks for each effort level, and after each one reads the level back from the CLI and compares the pid. Run it after a Claude Code update.
 
+`tools/cli-compaction-check.ts` runs `cliCompaction` ([Compaction](how-it-works.md#compaction)) on a real dsh and a real `claude`:
+
+```sh
+bun run build && bun tools/cli-compaction-check.ts --dsh desktop       # DSH Desktop's own runtime; spends tokens
+bun tools/cli-compaction-check.ts --dsh /path/to/deepseek-harness/apps/cli/lib/bin.js --only s1,s3
+```
+
+Each scenario links this checkout into dsh's `acp` profile under throwaway `DSH_HOME`, `DSH_OMC_STATE_DIR` and cwd directories, where one dsh process serves several turns over stdio, and runs claude-haiku-4-5 with compaction-basic's threshold lowered. dsh starts with a pared-down environment, since run from inside a Claude Code session the rest would make the CLI it spawns a child of that session. s1 crosses dsh's threshold in a turn's last step and expects one `/compact` at the start of turn 2 or 3 (dsh's tool-result pruner can meet its stale figure for a turn first), the same check's second ask refused, and dsh holding the CLI's summary. s3 lowers Claude Code's own threshold below dsh's with `CLAUDE_AUTOCOMPACT_PCT_OVERRIDE` and expects the CLI's summary reused with no model call. A compaction asked for mid-turn stays with the offline suite: the `acp` profile mounts no web server, so the MCP bridge and its dsh tools are not there to split a turn, and ACP takes one prompt per session at a time, so a steer cannot either. dsh's session log, the plugin's `resume.log` and the CLI's transcript are read after each run; a precondition the run did not reach reports INCONCLUSIVE rather than a verdict. The keepers, the directories and the transcripts it made are removed after; `--keep` leaves the directories. Run it after a dsh or Claude Code update.
+
 Two checks under `tools/playwright/` watch things that only happen on a live dsh:
 
 ```sh
