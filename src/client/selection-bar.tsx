@@ -224,14 +224,13 @@ function SelectionBar({
     const s = capture();
     // Collapsed to the end of whatever the composer had selected, so selected text is never replaced.
     const at = { ...s, start: s.end };
+    // dsh leaves the caret alone on an edit made while the composer is unfocused, and focusing it
+    // afterwards drops the caret at the draft's start, so focus first and the edit places the caret.
+    composerOf(anchorRef.current)?.focus({ preventScroll: true });
     if (!insert(at.end > 0 ? `\n\n${block}` : block, at)) {
       setNote(t("main.selection.quoteBusy"));
       return;
     }
-    // Lexical's commit already focused the editor with the caret after the quote; a bare DOM focus
-    // would put the caret at the start, so it is only a fallback for an editor that kept no focus.
-    const box = composerOf(anchorRef.current);
-    if (box !== null && !box.contains(document.activeElement)) box.focus({ preventScroll: true });
     close();
   };
 

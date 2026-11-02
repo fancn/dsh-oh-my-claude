@@ -131,6 +131,14 @@ const focused = await p.evaluate(
 );
 check("the composer has focus after Quote", focused, focused);
 await p.screenshot({ path: `/tmp/pw/selection-quoted-${tag}.png` });
+await p.keyboard.type("typed");
+await p.waitForTimeout(300);
+const typed = await p.locator("[data-composer-input]").innerText();
+check(
+  "typing after Quote lands under the quote",
+  typed.trimStart().startsWith(">") && typed.trimEnd().endsWith("\ntyped"),
+  typed.slice(-60),
+);
 // Leave the idle session's composer as it was found.
 await p.locator("[data-composer-input]").click();
 await p.keyboard.press("ControlOrMeta+A");
