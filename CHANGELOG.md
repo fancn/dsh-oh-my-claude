@@ -8,7 +8,8 @@ Versions from 1.0.0 up are on npm. Everything below 1.0.0 was released from the 
 
 ### Changed
 
-- Selecting text in the chat opens a popover next to the passage instead of a bar docked on the composer. Its question box takes the composer's keys: Enter asks, Shift+Enter starts a new line. Quote now needs a question: it writes the passage as a Markdown quote with the question under it and leaves the cursor on the next line, one blank line between blocks however many you quote. The popover follows the passage as the chat scrolls, waits at the chat's edge naming the passage while it is out of view, and keeps the passage highlighted while you type. The cursor used to land on either side of the quote's trailing blank line, or at the start of the draft. Ask is unchanged.
+- The selection bar is gone; Ask moved into dsh's own selection popover (dsh 0.2.2), beside its Quote text. dsh shows one plugin's popover per selection, so the plugin draws dsh's Quote text there itself, doing what dsh's does: the passage goes into the composer as dsh's quote chip. Ask turns the popover into a question box (Enter asks, Shift+Enter starts a new line, Escape closes) and sends the passage as an aside, as before. Both buttons take the Claude accent in a Claude session. The plugin's own Quote, which wrote the passage as Markdown into the draft, is gone. The Settings switch is now "Ask about a selection" and hides only Ask. On a dsh older than 0.2.2-alpha.2 there are no selection actions.
+- A quote in a message you sent now shows as dsh's own quote chip (dsh 0.2.2); the plugin no longer lays its own quote block over the message. The composer still dims quoted lines while you type, now by dsh's own rule: `>5 items` and a `>` line inside a code fence count, a lone `>` does not, and a chip in the composer is skipped. On an older dsh a sent quote reads as plain text again, `>` included.
 
 ## [1.5.13] - 2026-11-04
 

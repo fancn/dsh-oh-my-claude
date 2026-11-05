@@ -17,7 +17,7 @@ export type Locator = {
   filter(where: Find): Locator;
   locator(selector: string, where?: Find): Locator;
   count(): Promise<number>;
-  click(how?: { force?: boolean; timeout?: number; clickCount?: number }): Promise<void>;
+  click(how?: { force?: boolean; timeout?: number }): Promise<void>;
   hover(): Promise<void>;
   fill(value: string): Promise<void>;
   innerText(): Promise<string>;
@@ -54,12 +54,7 @@ export type Page = {
   waitForTimeout(ms: number): Promise<void>;
   screenshot(how: { path: string; clip?: Box; fullPage?: boolean }): Promise<void>;
   setViewportSize(size: Size): Promise<void>;
-  keyboard: {
-    press(key: string): Promise<void>;
-    type(text: string): Promise<void>;
-    down(key: string): Promise<void>;
-    up(key: string): Promise<void>;
-  };
+  keyboard: { press(key: string): Promise<void>; type(text: string): Promise<void> };
   on(event: "console", handler: (message: { text(): string }) => void): void;
   /** Every request the page makes; a counter check reads `url()` and `method()` off each one. */
   on(event: "request", handler: (request: { url(): string; method(): string }) => void): void;
@@ -82,6 +77,8 @@ export type Route = {
   fulfill(how: { response?: Reply; status?: number; json: JsonDoc }): Promise<void>;
   /** The request being answered; a check on one URL for GET and POST reads the method and body. */
   request(): { method(): string; postData(): string | null };
+  /** Let the request through to the box unchanged, as when a check only watches it. */
+  continue(): Promise<void>;
 };
 export type Reply = { json(): Promise<JsonDoc> };
 
