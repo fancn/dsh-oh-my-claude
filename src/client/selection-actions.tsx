@@ -161,6 +161,13 @@ export function SelectionActions(props: SelectionActionsProps) {
   const panelRef = useRef<HTMLDivElement>(null);
   const anchor = useRef<PassageAnchor | null>(null);
   usePinnedPanel(panelRef, passage !== null, anchor);
+  const mounted = useRef(false);
+  useEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+    };
+  }, []);
 
   useEffect(() => {
     if (!enabled) dismiss?.();
@@ -205,12 +212,15 @@ export function SelectionActions(props: SelectionActionsProps) {
         headers: { "content-type": "application/json" },
         body: JSON.stringify(askBody(sessionId, question, passage)),
       });
+      // dsh's clearSelection and dismiss act on whatever selection and popover are current: once
+      // this popover is gone (a click elsewhere), a late answer must leave the next one alone.
+      if (!mounted.current) return;
       if (r.ok) return close();
       setNote(t(r.status === 409 ? "main.selection.noProcess" : "main.selection.askFailed"));
     } catch {
-      setNote(t("main.selection.askFailed"));
+      if (mounted.current) setNote(t("main.selection.askFailed"));
     } finally {
-      setAsking(false);
+      if (mounted.current) setAsking(false);
     }
   };
 

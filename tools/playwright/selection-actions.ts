@@ -5,8 +5,9 @@
 // chip in the composer and closes the popover, Ask turns the popover into a focused question box
 // with a preview of the passage that a collapsed selection does not close, Shift+Enter breaks the
 // line without asking, Escape closes it, a blank question posts the passage alone, a send in flight
-// keeps the box read-only and focused, a 409 shows the note and Enter retries, and with the
-// `selectionOff` hint set the popover offers Quote only. The sends are answered by stubs, so
+// keeps the box read-only and focused, a 409 shows the note and Enter retries, a send still in
+// flight when another passage is selected leaves that selection and its popover alone, and with
+// the `selectionOff` hint set the popover offers Quote only. The sends are answered by stubs, so
 // nothing is spent unless PW_ASK=1, which sends one real aside and waits for its card.
 // PLAYWRIGHT_ROOT names a project with Playwright; arg 1 is dsh's launch token; PW_WIDTH and
 // PW_SCHEME pick the viewport (1280, dark by default). Screenshots go to /tmp/pw/.
@@ -31,16 +32,17 @@ const check = (label: string, ok: boolean, got: string | number | boolean) => {
   console.log(`${ok ? "ok  " : "FAIL"} ${label}: ${JSON.stringify(got)}`);
 };
 
-/** Selects the first words of the newest reply paragraph. dsh's text-interaction hook listens for
- *  `selectionchange`, which `addRange` fires, so no pointer gesture is needed. The old selection is
- *  dropped first, a beat apart: after Escape it is still there, and the same range added again
- *  is no change to dsh, as a mouse drag (which collapses it on press) never is. Answers the text. */
-const selectReply = async (p: Page) => {
+/** Selects the first words of the newest reply paragraph, or the one `back` paragraphs before it.
+ *  dsh's text-interaction hook listens for `selectionchange`, which `addRange` fires, so no pointer
+ *  gesture is needed. The old selection is dropped first, a beat apart: after Escape it is still
+ *  there, and the same range added again is no change to dsh, as a mouse drag (which collapses it
+ *  on press) never is. Answers the text. */
+const selectReply = async (p: Page, back = 0) => {
   await p.evaluate(() => document.getSelection()?.removeAllRanges());
   await p.waitForTimeout(200);
-  return p.evaluate(() => {
+  return p.evaluate((skip) => {
     const paras = document.querySelectorAll('[data-chat-flow-kind="assistant-step"] p');
-    const para = paras[paras.length - 1];
+    const para = paras[paras.length - 1 - skip];
     const text = para && document.createTreeWalker(para, NodeFilter.SHOW_TEXT).nextNode();
     const sel = document.getSelection();
     if (!(text instanceof Text) || sel === null) return "";
@@ -50,7 +52,7 @@ const selectReply = async (p: Page) => {
     sel.removeAllRanges();
     sel.addRange(range);
     return sel.toString().trim();
-  });
+  }, back);
 };
 
 /** Whether the element is rendered with its whole box inside the viewport. A popover that drew
@@ -247,6 +249,42 @@ if ((await openAsk()) !== null) {
   await p.keyboard.press("Escape");
   await p.waitForTimeout(400);
   check("Escape closes the box after a failure", (await field.count()) === 0, await field.count());
+}
+await p.unrouteAll({ behavior: "ignoreErrors" });
+
+// A send still in flight when the person clicks away and selects another passage: its late answer
+// must not clear that selection or close its popover.
+const lateSent = await stubSends(async (route) => {
+  await new Promise((resolve) => setTimeout(resolve, 2500));
+  await route.fulfill({ status: 200, json: { ok: true } });
+});
+// It needs a second reply paragraph to select; a session with one skips the check.
+const paragraphs = await p.locator('[data-chat-flow-kind="assistant-step"] p').count();
+if (paragraphs < 2) console.log("skip a late answer: the session has one reply paragraph");
+else if ((await openAsk()) !== null) {
+  await p.keyboard.type("late");
+  await p.keyboard.press("Enter");
+  await p.waitForTimeout(300);
+  // Any press outside dsh's surface dismisses it; the composer is a target every width shows.
+  await p.locator("[data-composer-input]").click({ force: true });
+  await p.waitForTimeout(300);
+  const next = await selectReply(p, 1);
+  await p.waitForTimeout(600);
+  const opened = await quoteBtn.count();
+  await p.waitForTimeout(3000);
+  const kept = await p.evaluate(() => document.getSelection()?.toString().trim() ?? "");
+  check(
+    "a late answer leaves the next selection alone",
+    lateSent.body !== null && next !== "" && kept === next,
+    kept,
+  );
+  check(
+    "a late answer leaves the next popover open",
+    opened === 1 && (await quoteBtn.count()) === 1,
+    await quoteBtn.count(),
+  );
+  await p.keyboard.press("Escape");
+  await p.waitForTimeout(400);
 }
 await p.unrouteAll({ behavior: "ignoreErrors" });
 
