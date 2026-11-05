@@ -3,7 +3,7 @@
 // token for the Models API (on macOS, from the Keychain when the file has none). This is an I/O
 // boundary: JSON from disk is decoded here and typed values leave.
 import { execFile } from "node:child_process";
-import { appendFile, mkdir, readFile, rename, stat, writeFile } from "node:fs/promises";
+import { appendFile, copyFile, mkdir, readFile, rename, stat, writeFile } from "node:fs/promises";
 import { randomUUID } from "node:crypto";
 import { homedir } from "node:os";
 import { dirname, isAbsolute, join, resolve as resolvePath } from "node:path";
@@ -62,6 +62,26 @@ export async function trace(fileOrLine: string, maybeLine?: string): Promise<voi
   } catch {}
 }
 
+/** Set a file aside as `<file>.corrupt-<ms>` when it holds text that is not JSON. Every store here
+ *  reads a file it cannot parse as empty and then writes its next state over it, so one typo from
+ *  a hand edit wiped every row (all switches, every workspace's model, all cost records). The
+ *  write still goes ahead; the old text survives beside it to be mended by hand. A missing or empty
+ *  file is nothing to keep. */
+async function keepUnreadable(file: string): Promise<void> {
+  let text: string;
+  try {
+    text = await readFile(file, "utf8");
+  } catch {
+    return;
+  }
+  if (text.trim() === "") return;
+  try {
+    JSON.parse(text);
+  } catch {
+    await copyFile(file, `${file}.corrupt-${Date.now()}`).catch(() => {});
+  }
+}
+
 /**
  * Write JSON so a crash mid-write cannot leave half a file behind: into a temp name in the same
  * directory, then rename over, which is atomic on one filesystem.
@@ -72,10 +92,20 @@ export async function trace(fileOrLine: string, maybeLine?: string): Promise<voi
  * writers to one path would otherwise share it, and the loser's rename would find the file the
  * winner already moved.
  */
-export async function writeJson(file: string, value: unknown): Promise<void> {
+export async function writeJson(
+  file: string,
+  value: unknown,
+  opts: { pretty?: boolean; mode?: number } = {},
+): Promise<void> {
   await mkdir(dirname(file), { recursive: true });
+  await keepUnreadable(file);
   const tmp = `${file}.tmp-${randomUUID()}`;
-  await writeFile(tmp, JSON.stringify(value));
+  const text = opts.pretty ? `${JSON.stringify(value, null, 2)}\n` : JSON.stringify(value);
+  await writeFile(
+    tmp,
+    text,
+    opts.mode === undefined ? "utf8" : { encoding: "utf8", mode: opts.mode },
+  );
   await rename(tmp, file);
 }
 
@@ -797,6 +827,10 @@ export interface WorkspaceModel {
   /** The Claude mount the model ran on (`claude-code`, or a box's `claude-code-<name>`). Absent
    *  on rows written before 2026-09-22, which then only name the model. */
   provider?: string;
+  /** The reasoning effort the workspace last ran at (`low` to `max`), so a new session reopens on
+   *  the same effort as well as the same model. Absent on rows written before 2026-11-04, and
+   *  when the turn ran on the model's own default. */
+  effort?: string;
   at: number;
 }
 
@@ -816,6 +850,7 @@ export async function loadWorkspaceModels(dir: string): Promise<Map<string, Work
           at: typeof row.at === "number" && Number.isFinite(row.at) ? row.at : 0,
         };
         if (typeof row.provider === "string" && row.provider !== "") entry.provider = row.provider;
+        if (typeof row.effort === "string" && row.effort !== "") entry.effort = row.effort;
         map.set(cwd, entry);
       }
     }
@@ -825,13 +860,25 @@ export async function loadWorkspaceModels(dir: string): Promise<Map<string, Work
   }
 }
 
-/** Save the model for one cwd, or forget it when `model` is undefined or blank. */
+/** Whether a turn's model is the workspace's to remember. A temporary side call is not, and nor is
+ *  a dsh subagent child: it shares its parent's cwd, and writing its model and effort (a Sonnet
+ *  review, say) moved the next new session in that workspace onto the child's choice. */
+export const countsForWorkspaceMemory = (turn: {
+  model: string | undefined;
+  temporary: boolean | undefined;
+  origin: string | undefined;
+}): boolean => Boolean(turn.model) && !turn.temporary && turn.origin !== "subagent";
+
+/** Save the model (and the mount and effort it ran on) for one cwd, or forget the row when `model`
+ *  is undefined or blank. The row is replaced whole, so an absent effort clears a remembered one:
+ *  a turn on the model's own default means "default" next time too. */
 export function saveWorkspaceModel(
   dir: string,
   cwd: string,
   model: string | undefined,
   at = Date.now(),
   provider?: string,
+  effort?: string,
 ): Promise<void> {
   const run = workspaceModelsChain.then(async () => {
     const file = WORKSPACE_MODELS_FILE(dir);
@@ -847,6 +894,7 @@ export function saveWorkspaceModel(
     else {
       const row: WorkspaceModel = { model, at };
       if (provider) row.provider = provider;
+      if (effort) row.effort = effort;
       obj[cwd] = row;
     }
     await writeJson(file, obj);
@@ -854,6 +902,44 @@ export function saveWorkspaceModel(
   workspaceModelsChain = run.catch(() => {});
   return run;
 }
+
+/** The model and effort a new Claude session opens on when its workspace remembers none, set in
+ *  Settings → Oh My Claude. `all` also pulls a blank in a workspace that has never run Claude onto
+ *  Claude; without it the default only picks the model for a blank that is Claude already. Its own
+ *  file rather than a hint, because the hints store holds only switches and numbers. */
+export interface NewSessionDefault {
+  provider: string;
+  model: string;
+  effort?: string;
+  all?: boolean;
+}
+
+/** Where the default lives under the plugin's state dir. */
+const NEW_SESSION_DEFAULT_FILE = (d: string) => join(d, "new-session-default.json");
+
+/** The saved default, or undefined for none, a missing file or a row that lost its model. */
+export async function loadNewSessionDefault(dir: string): Promise<NewSessionDefault | undefined> {
+  try {
+    const parsed: unknown = JSON.parse(await readFile(NEW_SESSION_DEFAULT_FILE(dir), "utf8"));
+    if (typeof parsed !== "object" || parsed === null) return undefined;
+    // SAFETY: a JSON object; every field is checked below before it is used.
+    const row = parsed as Record<string, unknown>;
+    if (typeof row.provider !== "string" || !row.provider) return undefined;
+    if (typeof row.model !== "string" || !row.model.trim()) return undefined;
+    const out: NewSessionDefault = { provider: row.provider, model: row.model };
+    if (typeof row.effort === "string" && row.effort) out.effort = row.effort;
+    if (row.all === true) out.all = true;
+    return out;
+  } catch {
+    return undefined;
+  }
+}
+
+/** Write the default, or clear it with undefined. The caller validates; this only stores. */
+export const saveNewSessionDefault = (
+  dir: string,
+  value: NewSessionDefault | undefined,
+): Promise<void> => writeJson(NEW_SESSION_DEFAULT_FILE(dir), value ?? {});
 
 /** Per-workspace character cost of each dsh context block, keyed by workspace cwd, read by the
  *  Settings card. Its own file rather than a field on `workspace-models.json`: that loader skips

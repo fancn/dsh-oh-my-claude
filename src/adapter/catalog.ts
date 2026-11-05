@@ -25,10 +25,26 @@ function capEfforts(efforts: readonly string[], cap?: (typeof EFFORTS_ALL)[numbe
 }
 /** One effort level's capability flag, as the Models API reports it. */
 type EffortLevelCaps = { supported?: boolean };
-/** The effort capability block: an overall flag plus one flag per level. */
+/** The effort capability block: an overall flag plus one flag per level. A level the plugin does
+ *  not know is still a key here; `unknownEffortsOf` reads those. */
 type EffortCaps = { supported?: boolean } & Partial<
   Record<(typeof EFFORTS_ALL)[number], EffortLevelCaps>
->;
+> & { [level: string]: EffortLevelCaps | boolean | undefined };
+
+/** A level's flag block, or undefined for the overall boolean and for an absent key. */
+const levelCaps = (v: EffortLevelCaps | boolean | undefined): EffortLevelCaps | undefined =>
+  v === undefined || v === true || v === false ? undefined : v;
+
+/** Levels the Models API marks supported that are not in `EFFORTS_ALL`. They are kept out of the
+ *  picker on purpose (a new level is offered only after it has been looked at), and this is how
+ *  one gets noticed: the names land on the row and Diagnostics lists them. */
+export function unknownEffortsOf(eff: EffortCaps | undefined): string[] {
+  if (!eff?.supported) return [];
+  const known: readonly string[] = EFFORTS_ALL;
+  return Object.entries(eff)
+    .filter(([k, v]) => k !== "supported" && !known.includes(k) && levelCaps(v)?.supported === true)
+    .map(([k]) => k);
+}
 const EFFORTS_45 = ["low", "medium", "high"];
 /** One picker row. `description` is dsh's own optional field, drawn under the name; only the CLI's
  *  rows carry one, and a row without one has no key, since dsh validates the shape it is given. */
@@ -42,6 +58,8 @@ interface CatalogModel {
   /** The Models API's `created_at`, as epoch ms; absent on a known or CLI row. Read by
    *  `mergeCatalog` to tell a model newer than the installed CLI from an old id it dropped. */
   createdAt?: number;
+  /** Effort levels the Models API reports for this model that the plugin does not know yet. */
+  unknownEfforts?: string[];
 }
 
 /** Build one KNOWN_MODELS row: the provider is always claude-code, so callers pass only the id, label, context window and efforts, filling description when given. */
@@ -132,6 +150,7 @@ const CachedCatalog = z.array(
     contextWindow: z.number(),
     efforts: z.array(z.string()),
     createdAt: z.number(),
+    unknownEfforts: z.array(z.string()),
   }),
 );
 /** Parse a persisted catalog file. Anything malformed reads as empty, so the caller falls back. */
@@ -142,6 +161,8 @@ export function parseCatalogCache(text: string): ReturnType<typeof M>[] {
       .map((r) => {
         const row = M(r.id, r.name, r.contextWindow, r.efforts);
         if (r.createdAt !== undefined) row.createdAt = r.createdAt;
+        // Kept across a restart, so Diagnostics still names a new level before the next live read.
+        if (r.unknownEfforts && r.unknownEfforts.length > 0) row.unknownEfforts = r.unknownEfforts;
         return row;
       });
   } catch {
@@ -184,6 +205,8 @@ export function modelFromApi(m: {
   const efforts: string[] = eff?.supported ? EFFORTS_ALL.filter((l) => eff[l]?.supported) : [];
   const id = stableModelId(m.id ?? "");
   const row = M(id, m.display_name ?? id, m.max_input_tokens ?? 200_000, efforts);
+  const unknown = unknownEffortsOf(eff);
+  if (unknown.length > 0) row.unknownEfforts = unknown;
   const created = m.created_at ? Date.parse(m.created_at) : Number.NaN;
   if (!Number.isNaN(created)) row.createdAt = created;
   return row;
@@ -479,11 +502,37 @@ export function mergeCatalog(
   // Two aliases can resolve to one model, and they now share its id; the first listed wins.
   return [...new Map(rows.map((r) => [r.row.id, r.row])).values()];
 }
+/** Each effort level the last Models API read reported that the plugin does not know, with the
+ *  models that carry it, for Diagnostics. Empty until a read has happened, and after a read that
+ *  found none. */
+export function unknownEffortLevels(): Array<{ level: string; models: string[] }> {
+  const byLevel = new Map<string, string[]>();
+  for (const m of catalog.models)
+    for (const level of m.unknownEfforts ?? [])
+      byLevel.set(level, [...(byLevel.get(level) ?? []), m.name]);
+  return [...byLevel].map(([level, models]) => ({ level, models }));
+}
+
 /** Serves the model catalog from cache, fetching Anthropic's API when the cache is stale, and
  *  keeps the last good catalog on any failure so the picker never goes empty. */
 export async function getCatalog(fetchImpl = fetch, cli: CliModel[] = [], picker?: PickerSettings) {
   await Promise.all([seedFromDisk(), seedLiveWindows()]);
   if (Date.now() - catalog.at < CATALOG_TTL_MS) return mergeCatalog(cli, catalog.models, picker);
+  // One read of the Models API at a time: every mount asks when the cache goes stale, and each
+  // used to fire its own call (and, offline, wait out its own five-second timeout).
+  apiRead ??= refreshFromApi(fetchImpl).finally(() => {
+    apiRead = undefined;
+  });
+  await apiRead;
+  return mergeCatalog(cli, catalog.models, picker);
+}
+
+/** The Models API read in flight, shared by every caller that finds the cache stale meanwhile. */
+let apiRead: Promise<void> | undefined;
+
+/** Refresh `catalog` from Anthropic's Models API, keeping the last good list on any failure and
+ *  marking the attempt so the next one waits out the TTL. */
+async function refreshFromApi(fetchImpl: typeof fetch): Promise<void> {
   const headers = await authHeaders(CLAUDE_HOME);
   if (headers) {
     try {
@@ -503,14 +552,13 @@ export async function getCatalog(fetchImpl = fetch, cli: CliModel[] = [], picker
           catalog = { at: Date.now(), models };
           void persistCatalog(models);
         }
-        return mergeCatalog(cli, catalog.models, picker);
+        return;
       }
     } catch {
       /* offline or rejected: keep previous catalog */
     }
   }
   catalog = { at: Date.now(), models: catalog.models }; // retry no sooner than the TTL
-  return mergeCatalog(cli, catalog.models, picker);
 }
 
 /** The provider-scoped half of a model entry; every Claude model takes text and images. */

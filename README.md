@@ -105,7 +105,8 @@ dsh ships prereleases only and moves client APIs between them, so every release 
 
 | Plugin | Runs on dsh | Tested on dsh | npm tag |
 | --- | --- | --- | --- |
-| 1.5.12 | 0.2.0-rc.1 through 0.2.2-alpha.2 | 0.2.2-alpha.2 | `latest`, `dsh-0.2` |
+| 1.5.13 | 0.2.0-rc.1 through 0.2.2-rc.1 | 0.2.2-rc.1 | `latest`, `dsh-0.2` |
+| 1.5.12 | 0.2.0-rc.1 through 0.2.2-alpha.2 | 0.2.2-alpha.2 | none, superseded by 1.5.13 |
 | 1.5.11 | 0.2.0-rc.1 through 0.2.2-alpha.2 | 0.2.2-alpha.2 | none, superseded by 1.5.12 |
 | 1.5.10 | 0.2.0-rc.1 through 0.2.2-alpha.2 | 0.2.2-alpha.2 | none, superseded by 1.5.11 |
 | 1.5.9 | 0.2.0-rc.1 through 0.2.1-rc.4 | 0.2.1-rc.4 | none, superseded by 1.5.10 |
@@ -150,7 +151,7 @@ dsh ships prereleases only and moves client APIs between them, so every release 
 24. Select text in a reply to quote it into your message, or to ask Claude about it as a side question that leaves the conversation alone; leave the question blank and Claude explains the passage. A quote in your own message reads like one in Claude's replies, indented with the accent bar. [Asides](https://github.com/lcestou/dsh-oh-my-claude/blob/main/docs/panel.md#asides)
 25. A finished turn keeps a closing line where the working verb was, the way the terminal ends one: `✻ Crunched for 27s · done 3:21 AM`. A turn you stopped reads `Interrupted · What should Claude do instead?`. [Turn status](https://github.com/lcestou/dsh-oh-my-claude/blob/main/docs/how-it-works.md#turn-status)
 26. On dsh 0.1.7, Claude's tool calls show as dsh's own tool cards, the way every other provider's do, with the text streaming between them. Inline text is a switch away in Settings. [Tool rows](https://github.com/lcestou/dsh-oh-my-claude/blob/main/docs/configuration.md)
-27. A new session in a workspace opens on the Claude box and model that workspace last ran. [Remember model per workspace](https://github.com/lcestou/dsh-oh-my-claude/blob/main/docs/panel.md#remember-model-per-workspace)
+27. A new session in a workspace opens on the Claude box, model and effort that workspace last ran, and a workspace with nothing remembered opens on a default model and effort you pick. [Remember model per workspace](https://github.com/lcestou/dsh-oh-my-claude/blob/main/docs/panel.md#remember-model-per-workspace)
 28. After each reply, Claude's guess at your next prompt shows above the composer: Use writes it into the box, Send sends it as it is, and it folds away while you type something else. On by default, as in the terminal; a switch in Settings turns it off. [Suggested next prompt](https://github.com/lcestou/dsh-oh-my-claude/blob/main/docs/panel.md#suggested-next-prompt)
 29. Claude's background shell tasks and subagents are listed on the Tasks tab while they run, each with Stop and, for a shell task, Output, plus Stop all once two or more run. A shell task that ended keeps its row and its Output for the last ten; the subagents a session already ran sit under Earlier subagents, each openable as Markdown. A subagent's row in the chat names each step as the CLI reports it. [Tasks](https://github.com/lcestou/dsh-oh-my-claude/blob/main/docs/panel.md#tasks)
 30. If an `ANTHROPIC_API_KEY` in dsh's environment is what Claude Code bills instead of your login, the session says so in one line at its start. [Where things live](https://github.com/lcestou/dsh-oh-my-claude/blob/main/docs/how-it-works.md#where-things-live)
@@ -160,7 +161,7 @@ dsh ships prereleases only and moves client APIs between them, so every release 
 34. A session renamed in dsh keeps that name in `claude --resume`, and a name set on the Claude side renames the dsh session. [How it works](https://github.com/lcestou/dsh-oh-my-claude/blob/main/docs/how-it-works.md)
 35. Switch a session between Claude and another model, such as DeepSeek or a local one, and back: Claude sees the prompts, replies and tool use the other model had in between. [Sessions](https://github.com/lcestou/dsh-oh-my-claude/blob/main/docs/how-it-works.md#sessions)
 36. Up in an empty composer brings back your last prompt, Up again older ones, Down newer ones and back to empty, as in the Claude Code terminal; typing a character ends the walk. A new session recalls from the workspace's latest transcript. Switch it off under Settings ("Prompt recall").
-37. Ctrl+R in the composer searches the prompts typed before: this session, the workspace or everywhere on the box (Ctrl+S cycles). Enter sends the row, Tab writes it into the composer, Esc closes. Switch it off under Settings ("History search").
+37. Ctrl+R in the composer searches the prompts typed before: this session, the workspace or everywhere on the box (Ctrl+S or Ctrl+Up/Down cycles). Enter sends the row, Tab writes it into the composer, Esc closes. Switch it off under Settings ("History search").
 38. Esc Esc in an empty composer while nothing runs opens the Rewind tab on the latest prompt, as the terminal's double Escape opens /rewind; after the rewind that prompt is back in the composer to edit and resend. Switch it off under Settings ("Edit last prompt"). The three composer gestures are listed in dsh's Keyboard shortcuts dialog too.
 
 Defaults you never have to touch, such as secret redaction in tool results and surviving the CLI's own updates, are on [How it works](https://github.com/lcestou/dsh-oh-my-claude/blob/main/docs/how-it-works.md).

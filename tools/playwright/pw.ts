@@ -27,6 +27,8 @@ export type Locator = {
   allInnerTexts(): Promise<string[]>;
   getAttribute(name: string): Promise<string | null>;
   boundingBox(): Promise<Box | null>;
+  evaluate<R>(fn: (el: HTMLElement) => R): Promise<R>;
+  evaluateAll<R>(fn: (els: HTMLElement[]) => R): Promise<R>;
   screenshot(how: { path: string }): Promise<void>;
   scrollIntoViewIfNeeded(): Promise<void>;
   setInputFiles(files: string | string[]): Promise<void>;

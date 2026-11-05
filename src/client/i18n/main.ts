@@ -382,7 +382,22 @@ export const en = {
     "When you scroll up and Claude's working line (spinner, verb, figures) under the turn goes out of view, a copy shows above the composer. It hides once the line is back on screen. On by default.",
   "main.settingsUi.wsModelTitle": "Remember model per workspace",
   "main.settingsUi.wsModelDesc":
-    "A new session in a workspace opens on the Claude it last ran there: the same box and the same model. A blank session you have already switched by hand is left as you set it.",
+    "A new session in a workspace opens on the Claude it last ran there: the same box, model and effort. A blank session you have already switched by hand is left as you set it.",
+  "main.settingsUi.newDefaultTitle": "Default for new Claude sessions",
+  "main.settingsUi.newDefaultDesc":
+    "The model and effort a new Claude session opens on when its workspace remembers none. A workspace that has run Claude before still opens on what it last ran while Remember model per workspace is on; turn that off to use this default everywhere.",
+  "main.settingsUi.newDefaultModel": "Default model for new Claude sessions",
+  "main.settingsUi.newDefaultEffort": "Default effort for new Claude sessions",
+  "main.settingsUi.newDefaultNone": "No default",
+  "main.settingsUi.newDefaultLocal": "This box",
+  "main.settingsUi.newDefaultEffortModel": "Model's default effort",
+  "main.settingsUi.newDefaultAll": "Also for workspaces that never ran Claude",
+  "main.settingsUi.newDefaultSaveFailed": "Could not save the default. Try again.",
+  "main.settingsUi.effort.low": "Low",
+  "main.settingsUi.effort.medium": "Medium",
+  "main.settingsUi.effort.high": "High",
+  "main.settingsUi.effort.xhigh": "Extra high",
+  "main.settingsUi.effort.max": "Max",
   "main.settingsUi.costTitle": "Claude cost in the footer",
   "main.settingsUi.costDesc":
     "What the session has spent at API rates, beside dsh's own stats. The figure is still recorded with the switch off; only the pill and its panel go away.",
@@ -398,7 +413,7 @@ export const en = {
     "Up and Down: in an empty composer, Up brings back the last prompt, Up again older ones, Down newer ones and back to empty. Typing a character ends the walk and the arrows move the caret again. A new session recalls from the workspace's latest transcript.",
   "main.settingsUi.historyTitle": "History search",
   "main.settingsUi.historyDesc":
-    "Ctrl+R: search the prompts typed before, in this session, the workspace or everywhere on the box (Ctrl+S cycles). Enter sends the row, Tab writes it into the composer, Esc closes.",
+    "Ctrl+R: search the prompts typed before, in this session, the workspace or everywhere on the box (Ctrl+S or Ctrl+Up/Down cycles). Enter sends the row, Tab writes it into the composer, Esc closes.",
   "main.settingsUi.editLastTitle": "Edit last prompt",
   "main.settingsUi.editLastDesc":
     "Esc Esc: in an empty composer while nothing runs, opens the Rewind tab on the latest prompt; after the rewind that prompt is back in the composer to edit and resend.",
@@ -407,11 +422,12 @@ export const en = {
   "main.history.placeholder": "Type to filter…",
   "main.history.none": "No prompt matches",
   "main.history.scopeLabel": "Search scope",
-  "main.history.scopeTip": "Ctrl+S cycles the scope",
+  "main.history.scopeTip": "Ctrl+S or Ctrl+Up/Down cycles the scope",
   "main.history.scope.session": "This session",
   "main.history.scope.workspace": "Workspace",
   "main.history.scope.box": "Everywhere",
-  "main.history.keys": "Enter sends · Tab fills the composer · Ctrl+S scope · Esc closes",
+  "main.history.keys":
+    "Enter sends · Tab fills the composer · Ctrl+S or Ctrl+↑/↓ scope · Esc closes",
   "main.settingsUi.modelsTitle": "Models in the picker",
   "main.settingsUi.modelsDesc":
     "Switch a model off to leave it out of that box's model picker. Each box has its own list, so a box you added over SSH can keep a model this one hides. A session already on it keeps running. A newer model shows up on its own.",
@@ -915,7 +931,22 @@ export const zh = {
     "向上滚动、本轮下方 Claude 的工作状态行（转轮、动词、数据）移出屏幕时，输入框上方会显示同样的一行；该行回到屏幕上时隐藏。默认开启。",
   "main.settingsUi.wsModelTitle": "按工作区记住模型",
   "main.settingsUi.wsModelDesc":
-    "工作区中的新会话会以它上次运行的 Claude 打开：同一台机器、同一个模型。你已手动切换过的空白会话保持你的选择。",
+    "工作区中的新会话会以它上次运行的 Claude 打开：同一台机器、同一个模型和推理强度。你已手动切换过的空白会话保持你的选择。",
+  "main.settingsUi.newDefaultTitle": "新 Claude 会话的默认设置",
+  "main.settingsUi.newDefaultDesc":
+    "工作区没有记住模型时，新 Claude 会话使用的模型和推理强度。开启“按工作区记住模型”时，运行过 Claude 的工作区仍按上次的设置打开；关闭它即可在所有地方使用此默认设置。",
+  "main.settingsUi.newDefaultModel": "新 Claude 会话的默认模型",
+  "main.settingsUi.newDefaultEffort": "新 Claude 会话的默认推理强度",
+  "main.settingsUi.newDefaultNone": "不设默认",
+  "main.settingsUi.newDefaultLocal": "本机",
+  "main.settingsUi.newDefaultEffortModel": "模型默认强度",
+  "main.settingsUi.newDefaultAll": "也用于从未运行过 Claude 的工作区",
+  "main.settingsUi.newDefaultSaveFailed": "无法保存默认设置，请重试。",
+  "main.settingsUi.effort.low": "低",
+  "main.settingsUi.effort.medium": "中",
+  "main.settingsUi.effort.high": "高",
+  "main.settingsUi.effort.xhigh": "超高",
+  "main.settingsUi.effort.max": "最高",
   "main.settingsUi.costTitle": "页脚显示 Claude 费用",
   "main.settingsUi.costDesc":
     "会话按 API 价花费的金额，显示在 dsh 自己的统计旁边。关闭开关后仍会记录该数字；只是移除该提示和它的面板。",
@@ -931,7 +962,7 @@ export const zh = {
     "上下箭头：输入框为空时按上箭头调出上一条提示词，再按上箭头调出更早的，下箭头调出更新的直至清空。输入任意字符即结束回溯，箭头恢复移动光标。新会话从该工作区最近的记录中回溯。",
   "main.settingsUi.historyTitle": "历史搜索",
   "main.settingsUi.historyDesc":
-    "Ctrl+R：搜索之前输入过的提示词，范围可为本会话、本工作区或整台机器（Ctrl+S 切换）。Enter 发送所选行，Tab 填入输入框，Esc 关闭。",
+    "Ctrl+R：搜索之前输入过的提示词，范围可为本会话、本工作区或整台机器（Ctrl+S 或 Ctrl+↑/↓ 切换）。Enter 发送所选行，Tab 填入输入框，Esc 关闭。",
   "main.settingsUi.editLastTitle": "编辑上一条提示词",
   "main.settingsUi.editLastDesc":
     "Esc Esc：输入框为空且没有任务运行时，打开回溯标签页并选中最新一条提示词；回溯后该提示词会回到输入框，可修改后重新发送。",
@@ -940,11 +971,11 @@ export const zh = {
   "main.history.placeholder": "输入以筛选…",
   "main.history.none": "没有匹配的提示词",
   "main.history.scopeLabel": "搜索范围",
-  "main.history.scopeTip": "Ctrl+S 切换范围",
+  "main.history.scopeTip": "Ctrl+S 或 Ctrl+↑/↓ 切换范围",
   "main.history.scope.session": "本会话",
   "main.history.scope.workspace": "工作区",
   "main.history.scope.box": "整台机器",
-  "main.history.keys": "Enter 发送 · Tab 填入输入框 · Ctrl+S 切换范围 · Esc 关闭",
+  "main.history.keys": "Enter 发送 · Tab 填入输入框 · Ctrl+S 或 Ctrl+↑/↓ 切换范围 · Esc 关闭",
   "main.settingsUi.modelsTitle": "选择器中的模型",
   "main.settingsUi.modelsDesc":
     "关掉一个模型，它就不再出现在该主机的模型选择器里。每台主机各有一份列表，所以通过 SSH 添加的主机可以保留本机隐藏的模型。已在用它的会话照常运行。新模型会自动出现。",
