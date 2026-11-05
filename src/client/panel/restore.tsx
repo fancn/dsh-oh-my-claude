@@ -99,13 +99,17 @@ export const retentionNote = (s: FeatureSwitches | null): string =>
  * tab and the composer button, which reads it to know whether a blank session has anything to
  * restore before the panel is ever opened.
  */
-export function useTranscripts(cwd: string | undefined): SessionData[] {
-  const [transcripts, setTranscripts] = useState<SessionData[]>([]);
+export function useTranscripts(cwd: string | undefined): SessionData[] | undefined {
+  // `undefined` while the workspace's answer is still on its way, so a caller can tell "not known
+  // yet" from "none": the panel used to read the in-flight list as empty and open a blank session
+  // on the last tab instead of Restore when the flower was clicked before the answer landed
+  // (owner, 2026-11-04). No cwd is a known empty list, nothing is ever read for it.
+  const [transcripts, setTranscripts] = useState<SessionData[] | undefined>(cwd ? undefined : []);
   useEffect(() => {
     // The list is the workspace's: a switch to another workspace (or to a session with no cwd yet)
     // clears it before the new answer lands, so the Restore tab never shows the last workspace's
     // transcripts under the new one's name (owner, 2026-10-21, on a new session in IC-Saves).
-    setTranscripts([]);
+    setTranscripts(cwd ? undefined : []);
     if (!cwd) return;
     let live = true;
     fetch(`${ROUTE}/sessions?cwd=${encodeURIComponent(cwd)}`)
@@ -117,6 +121,22 @@ export function useTranscripts(cwd: string | undefined): SessionData[] {
     };
   }, [cwd]);
   return transcripts;
+}
+
+/** The tab the panel opens on. A blank session opens on Restore when the workspace has a
+ *  transcript to restore, and also while the list is still unknown: the answer usually lands
+ *  within the first paint, and a click that beats it must not land on the last tab and make
+ *  the default look random. A blank session with a known empty list, or a session with content,
+ *  opens on the tab used last; Restore is not offered there, so that choice falls back to Memory. */
+export function panelOpenTab(args: {
+  blank: boolean;
+  restorable: number;
+  unknown: boolean;
+  lastTab: string;
+}): string {
+  const { blank, restorable, unknown, lastTab } = args;
+  if (blank && (restorable > 0 || unknown)) return "Restore";
+  return lastTab === "Restore" ? "Memory" : lastTab;
 }
 
 /** The line under the plugin's version that says what the heal did to this box's session logs
@@ -260,7 +280,11 @@ export function RestoreBody({
   useLocale();
   const entry = ctx.sessions.list.getSnapshot()?.byId[sessionId];
   const cwd = entry?.cwd;
-  const transcripts = useTranscripts(cwd);
+  const loaded = useTranscripts(cwd);
+  // Still on its way: the panel now opens on this tab before the list lands, so the empty line
+  // must not stand in for "loading" (it flashed "nothing to restore" and then the rows).
+  const loading = loaded === undefined;
+  const transcripts = loaded ?? [];
   const [query, setQuery] = useState("");
   // How many rows show: eight to start, twenty more per click. A workspace with 146 transcripts
   // showed eight and nothing said there were more (owner, 2026-09-22); the search is for finding
@@ -293,7 +317,14 @@ export function RestoreBody({
           }}
         />
       )}
-      {candidates.length === 0 && (
+      {loading && (
+        <div data-omc-restore-loading="" aria-busy="true" aria-label={t("loading")}>
+          <div data-omc-skeleton="" style={{ height: 12, width: "55%", margin: "6px 0" }} />
+          <div data-omc-skeleton="" style={{ height: 12, width: "80%", margin: "6px 0" }} />
+          <div data-omc-skeleton="" style={{ height: 12, width: "65%", margin: "6px 0" }} />
+        </div>
+      )}
+      {!loading && candidates.length === 0 && (
         <span data-omc-restore-empty="" style={{ ...meta, padding: "2px 0", whiteSpace: "normal" }}>
           {t("panel.restore.empty", { name })}
         </span>

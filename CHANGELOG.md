@@ -10,8 +10,29 @@ Versions from 1.0.0 up are on npm. Everything below 1.0.0 was released from the 
 
 - Selecting text in the chat opens a popover next to the passage instead of a bar docked on the composer. Its question box takes the composer's keys: Enter asks, Shift+Enter starts a new line. Quote now needs a question: it writes the passage as a Markdown quote with the question under it and leaves the cursor on the next line, one blank line between blocks however many you quote. The popover follows the passage as the chat scrolls, waits at the chat's edge naming the passage while it is out of view, and keeps the passage highlighted while you type. The cursor used to land on either side of the quote's trailing blank line, or at the start of the draft. Ask is unchanged.
 
+## [1.5.13] - 2026-11-04
+
+dsh: runs on 0.2.0-rc.1 through 0.2.2-rc.1; built and tested on 0.2.2-rc.1.
+
+### Added
+
+- Default for new Claude sessions, in Settings → Oh My Claude: a model and an effort for a blank Claude session whose workspace remembers nothing, with a checkbox to also pull workspaces that never ran Claude onto it. A provider picked by hand on the blank still wins, and a workspace that has run Claude still opens on what it last ran while Remember model per workspace is on.
+- Diagnostics names any effort level the Models API reports that the plugin does not offer yet, with the models that carry it. A new level stays out of the picker until a plugin update adds it, and until now nothing said one had appeared.
+- Remember model per workspace now remembers the effort as well as the model, so a workspace last run on Opus at high reopens on Opus at high.
+- The history search card closes when the page loses focus and on Esc wherever the keyboard is in the page, not only from its own field. A browser that takes Ctrl+S for itself (Zen, Arc) moved the keyboard to its sidebar and left the card open with no way out.
+- Ctrl+Down and Ctrl+Up cycle the history search's scope alongside Ctrl+S. Zen and Arc take Ctrl+S at the browser level to toggle their sidebar, so the card never saw it there; no browser binds Ctrl with an arrow. The scope pill on the card stays clickable too, and the tooltip, the card's key line and the Settings description name both.
+- The quote chip dsh 0.2.2 puts in the composer ("Quote text" on a selected passage) and in the sent bubble's preview takes the Claude accent in a Claude session, as file mentions and reference chips already do; it stays dsh's blue elsewhere. Part of the prose and composer theme groups, so the existing switches cover it.
+
 ### Fixed
 
+- Saving a skill, memory file, CLAUDE.md or settings file larger than about 96 KB to an SSH box works. The content went out inside the ssh command line, and Linux refuses a single argument past 128 KiB (`spawn E2BIG`); it now goes on ssh's input.
+- A dsh subagent no longer changes the model a workspace remembers. A child session shares its parent's folder, so a review or helper running on Sonnet moved the next new session in that workspace onto Sonnet.
+- A state file broken by a hand edit is kept as `<file>.corrupt-<time>` before the plugin writes over it. Until now one typo in a file such as the switches store read as empty, and the next save wiped every entry in it.
+- The box lists (SSH boxes, remote workspaces) are written through a temporary file, so a crash mid-save cannot leave them truncated and unmount every box.
+- The cost dialog can be reached from the keyboard: opening it moves focus inside, Tab reaches the Warn at field, and Escape returns to the pill. Its tooltip closes when the pill goes away and keeps up with the figure while open. It now appears the way dsh's own stat tooltips do: after a short hover delay, with dsh's fade, and never for a tap on a phone, where it used to sit on top of the dialog the tap opened.
+- Escape aimed at a dialog opened over the history search card goes to that dialog instead of closing the card.
+- A restored session no longer shows Claude Code's background-task notices as messages you sent. Newer Claude Code queues each `<task-notification>` on the same rows as a prompt typed while Claude was busy, and the import read every one as typed text, so a session that ran background commands opened with bubbles of task-id markup in your name. Sessions restored before this keep the bubbles they already have.
+- The ✻ panel on a new session opens on Restore every time, not only when the workspace's transcript list had already arrived. The list is read when the session appears, and a click on the flower that beat the answer opened the panel on whatever tab was used last, so the default looked random (Memory one time, Restore the next). While the list is still unknown, Restore wins; a workspace with nothing to restore still opens on the last tab.
 - The cost pill's dialog opens above the pill again on dsh 0.2.2-alpha.3. That dsh gives its composer seat `will-change: transform`, which makes the seat the containing block for anything fixed-positioned inside it, and the dialog, rendered beside the pill, took its viewport coordinates from the seat's corner and drew 770px below the pill, off the bottom of the screen. The dialog is now portaled to the document body the way dsh's own stat dialogs are.
 - Hovering the cost pill shows its breakdown (session total, last turn, turns, time to first token) in a tooltip; dsh's own stat pills show none, so the figure was readable only through the dialog.
 

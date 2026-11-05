@@ -14,9 +14,13 @@ import {
   STATE_DIR,
   isPermissionMode,
   loadContextSizes,
+  loadNewSessionDefault,
   loadWorkspaceModels,
+  saveNewSessionDefault,
   saveWorkspaceModel,
+  type NewSessionDefault,
 } from "../state.js";
+import { EFFORTS_ALL } from "../adapter/catalog.js";
 import { typedPrompt } from "../transcript.js";
 import type { AsideEntry, RewindPrompt } from "../adapter/types.js";
 
@@ -180,13 +184,52 @@ export function controlsRoutes(ctx: RouteCtx): RouteHandler {
     }
     if (req.method === "POST" && url.pathname === `${ROUTE_PREFIX}/workspace-model`) {
       const body = await readBody(req);
-      const cwd = String(body.cwd ?? "");
-      if (!cwd) return json(res, 400, { error: "cwd required" });
+      // A string and an absolute path, checked rather than coerced: `{"cwd":{}}` used to store the
+      // key "[object Object]", a row no GET could ever match.
+      const cwd = typeof body.cwd === "string" ? body.cwd : "";
+      if (!validCwd(cwd)) return json(res, 400, { error: "cwd must be an absolute path" });
       await saveWorkspaceModel(
         STATE_DIR,
         cwd,
         typeof body.model === "string" ? body.model : undefined,
       );
+      return json(res, 200, { ok: true });
+    }
+    // The model and effort a new Claude session opens on where its workspace remembers none,
+    // from Settings → Oh My Claude. GET answers `{}` for none; POST with no model clears it.
+    if (req.method === "GET" && url.pathname === `${ROUTE_PREFIX}/new-session-default`) {
+      const saved = await loadNewSessionDefault(STATE_DIR);
+      if (!saved) return json(res, 200, {});
+      // Same rule as the workspace memory: a model the CLI has since renamed answers in the form
+      // the lineup still has, and one it no longer offers answers nothing.
+      const offered = models ? (await models()).map((m) => m.id) : undefined;
+      const model = offered ? livingModelId(saved.model, offered) : saved.model;
+      return json(res, 200, model ? { ...saved, model } : {});
+    }
+    if (req.method === "POST" && url.pathname === `${ROUTE_PREFIX}/new-session-default`) {
+      const body = await readBody(req);
+      const model = typeof body.model === "string" ? body.model.trim() : "";
+      if (!model) {
+        await saveNewSessionDefault(STATE_DIR, undefined);
+        // Every open Settings row follows a write made in another tab or browser.
+        events?.hub.publish({ kind: "new-session-default", session: null, data: {} });
+        return json(res, 200, { ok: true });
+      }
+      // Checked at the door: the client reads this back and hands it to dsh's model picker.
+      const provider = typeof body.provider === "string" ? body.provider : "";
+      if (!/^claude-code(-[\w.-]{1,80})?$/.test(provider))
+        return json(res, 400, { error: "provider must be a Claude mount" });
+      // oxlint-disable-next-line no-control-regex -- control characters are what this rejects
+      if (model.length > 200 || /[\s\u0000-\u001f]/.test(model))
+        return json(res, 400, { error: "model must be a model id" });
+      const effort = body.effort === undefined || body.effort === null ? undefined : body.effort;
+      if (effort !== undefined && !EFFORTS_ALL.some((e) => e === effort))
+        return json(res, 400, { error: `effort must be one of ${EFFORTS_ALL.join(", ")}` });
+      const value: NewSessionDefault = { provider, model };
+      if (typeof effort === "string") value.effort = effort;
+      if (body.all === true) value.all = true;
+      await saveNewSessionDefault(STATE_DIR, value);
+      events?.hub.publish({ kind: "new-session-default", session: null, data: value });
       return json(res, 200, { ok: true });
     }
     // What dsh's context blocks cost on the last turn in this workspace, in characters,
@@ -208,9 +251,14 @@ export function controlsRoutes(ctx: RouteCtx): RouteHandler {
     }
     if (req.method === "POST" && url.pathname === `${ROUTE_PREFIX}/starter`) {
       const body = await readBody(req);
-      const sid = String(body.session ?? "");
-      if (!sid) return json(res, 400, { error: "session required" });
-      const text = String(body.text ?? "");
+      // Strings only: a coerced `{"text":{}}` became "[object Object]", saved as this session's
+      // opener and, through the default below, as every new tab's.
+      const sid = typeof body.session === "string" ? body.session : "";
+      if (!sid || sid.length > 200) return json(res, 400, { error: "session required" });
+      if (body.text !== undefined && typeof body.text !== "string")
+        return json(res, 400, { error: "text must be a string" });
+      const text = body.text ?? "";
+      if (text.length > 20_000) return json(res, 400, { error: "text too long" });
       setStarter?.(sid, text);
       // A saved opener is also the default for the next new session; that is what makes a
       // brand-new tab, which has no key of its own yet, show anything at all.
@@ -322,8 +370,8 @@ export function controlsRoutes(ctx: RouteCtx): RouteHandler {
     // record.
     if (req.method === "POST" && url.pathname === `${ROUTE_PREFIX}/side-questions/dismiss`) {
       const body = await readBody(req);
-      const sid = String(body.session ?? "");
-      const id = String(body.id ?? "");
+      const sid = typeof body.session === "string" ? body.session : "";
+      const id = typeof body.id === "string" ? body.id : "";
       if (!sid || !id) return json(res, 400, { error: "session and id required" });
       const entry = sideQuestions?.get(sid)?.find((e) => e.id === id);
       if (entry) {

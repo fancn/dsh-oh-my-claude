@@ -127,6 +127,7 @@ import {
   saveTerminalSync,
   saveContextSizes,
   saveWorkspaceModel,
+  countsForWorkspaceMemory,
   writeJson,
 } from "../state.js";
 import { suggestRule } from "../permissions.js";
@@ -3656,14 +3657,22 @@ export class ClaudeCodeAdapter extends LlmAdapter {
     // The model this workspace last ran, so a new session there opens on it (the client applies
     // it). Keyed by the dsh session's own cwd, the path the client asks with; a temporary session
     // is a side call and does not count.
-    const wsCwd =
-      this.ctx?.sessions?.get?.(asSessionId(options.sessionId))?.header?.cwd ?? prep.cwd;
-    if (prep.spec.model && !prep.spec.temporary) {
+    const wsHeader = this.ctx?.sessions?.get?.(asSessionId(options.sessionId))?.header;
+    const wsCwd = wsHeader?.cwd ?? prep.cwd;
+    // Subagent children excluded: they share the parent's cwd (see countsForWorkspaceMemory).
+    if (
+      prep.spec.model &&
+      countsForWorkspaceMemory({
+        model: prep.spec.model,
+        temporary: prep.spec.temporary,
+        origin: wsHeader?.origin,
+      })
+    ) {
       // One file write per change, not per turn: a long session on one model writes once.
       // The mount goes with the model: a new session in this workspace opens on both, so a box's
       // Claude comes back as that box's, and a local one as local (dsh 0.1.7 makes its blank
       // sessions ahead of time on the deployment default, so nothing else carries a provider over).
-      const written = `${this.providerId}\0${prep.spec.model}`;
+      const written = `${this.providerId}\0${prep.spec.model}\0${prep.spec.effort ?? ""}`;
       if (this.workspaceModelWritten.get(wsCwd) !== written) {
         this.workspaceModelWritten.set(wsCwd, written);
         void saveWorkspaceModel(
@@ -3672,6 +3681,7 @@ export class ClaudeCodeAdapter extends LlmAdapter {
           prep.spec.model,
           Date.now(),
           this.providerId,
+          prep.spec.effort ?? undefined,
         ).catch(() => {});
       }
     }
