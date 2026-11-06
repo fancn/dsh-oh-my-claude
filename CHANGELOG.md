@@ -6,6 +6,10 @@ Versions from 1.0.0 up are on npm. Everything below 1.0.0 was released from the 
 
 ## [Unreleased]
 
+### Added
+
+- dsh's compaction of a Claude session runs Claude Code's own `/compact` and takes its summary. dsh measures the prompt the CLI reports, which its one-shot summary of dsh's own copy never lowered, so past its threshold it compacted before every step (33 one-shot summaries in one team member's turns). A compaction asked for mid-turn waits until the session is idle, a subagent's or team member's until its next turn starts, and a compaction the CLI makes on its own reaches dsh's copy without another model call. Switch: `cliCompaction`, on by default.
+
 ### Changed
 
 - The selection bar is gone; Ask moved into dsh's own selection popover (dsh 0.2.2), beside its Quote text. dsh shows one plugin's popover per selection, so the plugin draws dsh's Quote text there itself, doing what dsh's does: the passage goes into the composer as dsh's quote chip. Ask turns the popover into a question box (Enter asks, Shift+Enter starts a new line, Escape closes) that stays beside the passage as the chat scrolls, and sends the passage as an aside, as before. Both buttons take the Claude accent in a Claude session. The plugin's own Quote, which wrote the passage as Markdown into the draft, is gone. The Settings switch is now "Ask about a selection" and hides only Ask. On a dsh older than 0.2.2-alpha.2 there are no selection actions.
